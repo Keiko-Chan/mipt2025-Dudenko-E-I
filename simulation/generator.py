@@ -14,8 +14,8 @@ from aztec_code_generator import AztecCode
 import treepoem 
 
 #https://www.kaggle.com/datasets/kontheeboonmeeprakob/midv500?resource=download
-gen1_types = ["GS1_128", "UPCA", "ISSN", "ISBN10", "ISBN13", "JAN", "PZN", "Code39", "Code128", "EAN8", "EAN13", "EAN14"]
-gen2_types = ["qrcode", "azteccode", "pdf417", "datamatrix", "code128", "code39", "ean13", "ean14", "ean8", "issn", "microqrcode", "upca", "pzn"]
+gen1_types = {"GS1_128": "1d", "UPCA": "UPC", "ISSN": "1d", "ISBN10": "1d", "ISBN13": "1d", "JAN": "1d", "PZN": "1d", "Code39": "C39", "Code128": "C128", "EAN8": "ean8", "EAN13": "ean13", "EAN14": "1d"}
+gen2_types = {"qrcode": "qr", "azteccode": "az", "pdf417": "pdf", "datamatrix": "dm", "code128": "C128", "code39": "C39", "ean13": "ean13", "ean14": "1d", "ean8": "ean8", "issn": "1d", "microqrcode": "m-qr", "upca": "UPC", "pzn": "1d"}
 
 
 class BarCode:
@@ -25,12 +25,15 @@ class BarCode:
     def __init__(self, bar_type, data, size=50):
         self.bar_type = bar_type
         self.data = data
+        
     
         if bar_type in gen1_types:
-            self.gen1()                
+            self.gen1()   
+            self.bar_type_tag = gen1_types[bar_type]             
         else:
             if bar_type in gen2_types:
                 self.gen2()
+                self.bar_type_tag = gen2_types[bar_type]  
             else:
                 raise ValueError('Unknown bar_type')
         
