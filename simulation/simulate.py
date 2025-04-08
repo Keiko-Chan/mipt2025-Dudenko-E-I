@@ -81,8 +81,8 @@ def main(bar_type, data, context_path, amount=1):
         
         # Projective Transfrom
         pts = [[0, 0], [canvas_w, 0], [canvas_w, canvas_h], [0, canvas_h]]
-        code_pts = [[w_key, h_key + h_code], [w_key, h_key], 
-                    [w_key + w_code, h_key], [w_key + w_code, h_key + h_code]]
+        code_pts = np.array([[w_key, h_key], [w_key, h_key], 
+                             [w_key, h_key], [w_key, h_key]]) + barcode.pts
         code_pts = np.float32(code_pts)
         pts = np.float32(pts)
         dst_pts = np.float32(dst_pts)
@@ -101,6 +101,7 @@ def main(bar_type, data, context_path, amount=1):
         res_markup = markup.create_obj_markup(code_dst_pts, barcode.bar_type_tag, 
                                               background.size)
         
+        #background = tr.pyramid_blending(background, warped, mask_im, levels=5, blur=25)
         #warped.save("warped.png")
         res_image_path = RESULT_PATH + "/images/" + (str(i) + ".png")
         res_markup_path = RESULT_PATH + "/markup/" + (str(i) + ".png.json")

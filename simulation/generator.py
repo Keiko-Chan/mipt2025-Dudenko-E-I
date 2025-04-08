@@ -43,6 +43,7 @@ class BarCode:
         w, h = self.barcode.size
         self.w = w
         self.h = h
+        self.pts = np.array([[0, self.h], [0, 0], [self.w, 0], [self.w, self.h]])
         #self.barcode = self.barcode.resize((box_size, -1), resample=Image.NEAREST)
 
     def gen1(self):
@@ -61,14 +62,21 @@ class BarCode:
         R = cv2.getRotationMatrix2D((self.w // 2, self.h // 2), angle, 1)
         R_inv = cv2.getRotationMatrix2D((self.w // 2, self.h // 2), -angle, 1)
         
-        pts = [[0, self.h], [0, 0], [self.w, 0], [self.w, self.h]]
-        dst = np.array(tr.rotate_quad(pts, R_inv))
+        #pts = [[0, self.h], [0, 0], [self.w, 0], [self.w, self.h]]
+        dst = np.array(tr.rotate_quad(self.pts, R))
         
         w_new = int(np.max(dst.T[0]) - np.min(dst.T[0]))
         h_new = int(np.max(dst.T[1])- np.min(dst.T[1]))
 
         R[0, 2] += (w_new // 2) - self.w // 2
         R[1, 2] += (h_new // 2) - self.h // 2
+        
+        
+        self.pts = dst.T
+        self.pts[0] += (w_new // 2) - self.w // 2
+        self.pts[1] += (h_new // 2) - self.h // 2
+        self.pts = self.pts.T
+        
         img = np.array(self.barcode)
         
         #print(R.shape, img.shape)
