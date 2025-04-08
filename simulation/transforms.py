@@ -1,3 +1,6 @@
+import numpy as np
+
+
 def warp_point(x: int, y: int, M) -> tuple[int, int]:
     d = M[2, 0] * x + M[2, 1] * y + M[2, 2]
 
@@ -12,3 +15,13 @@ def warp_quad(quad, M):
     p4 = warp_point(quad[3][0], quad[3][1], M)
 
     return [p1, p2, p3, p4]
+    
+
+def rotate_quad(quad, R_inv):
+    points = np.array(quad)
+    
+    ones = np.ones(shape=(len(points), 1))
+    points_ones = np.hstack([points, ones])
+    result = R_inv.dot(points_ones.T).T
+       
+    return result

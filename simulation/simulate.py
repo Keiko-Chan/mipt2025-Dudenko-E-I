@@ -52,15 +52,20 @@ def main(bar_type, data, context_path, amount=1):
         context_image_path = random.choice([im.path for im in os.scandir(context_folder) if Path(im).suffix == ".tif"])
         context_markup_path = Path(folder) / "ground_truth" / context_folder_name / (Path(os.path.basename(context_image_path)).stem + ".json")
         
-        
+       
         background = Image.open(context_image_path)
         
         w_init, h_init = Image.open(inital_image).size
         
         barcode = BarCode(bar_type, data)
-        w_code, h_code = barcode.barcode.size
         
-        canvas_h = random.randint(max(w_code, h_code) + max(h_code, w_code), h_init)
+        # Rotate barcode
+        angle = random.randint(0, 360)
+        barcode.rotate(angle)
+        
+        w_code, h_code = barcode.w, barcode.h
+        
+        canvas_h = random.randint(int(max(w_code, h_code) * 1.5), h_init)
         canvas_w = int(canvas_h * w_init / h_init)
         canvas = np.array(Image.new("RGB", (canvas_w, canvas_h), (255, 255, 255)))
         
@@ -74,7 +79,7 @@ def main(bar_type, data, context_path, amount=1):
             d = json.load(f)
         dst_pts = np.array(d["quad"])
         
-        #pts = [[0, canvas_h], [canvas_w, canvas_h], [canvas_w, 0], [0, 0]]
+        # Projective Transfrom
         pts = [[0, 0], [canvas_w, 0], [canvas_w, canvas_h], [0, canvas_h]]
         code_pts = [[w_key, h_key + h_code], [w_key, h_key], 
                     [w_key + w_code, h_key], [w_key + w_code, h_key + h_code]]
@@ -82,8 +87,6 @@ def main(bar_type, data, context_path, amount=1):
         pts = np.float32(pts)
         dst_pts = np.float32(dst_pts)
         
-        #canvas.save("canvas.png")
-      
         M = cv2.getPerspectiveTransform(pts, dst_pts)
         code_dst_pts = tr.warp_quad(code_pts, M)
         warped = cv2.warpPerspective(np.array(canvas), M, dsize=background.size)

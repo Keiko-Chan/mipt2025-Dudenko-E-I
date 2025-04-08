@@ -1,6 +1,7 @@
 from io import BytesIO
 import numpy as np
 from PIL import Image
+import cv2
 
 from qrcode.image.styledpil import StyledPilImage
 from qrcode.image.styles.moduledrawers.pil import RoundedModuleDrawer
@@ -12,6 +13,8 @@ from barcode.writer import ImageWriter
 import qrcode
 from aztec_code_generator import AztecCode
 import treepoem 
+
+import transforms as tr
 
 #https://www.kaggle.com/datasets/kontheeboonmeeprakob/midv500?resource=download
 gen1_types = {"GS1_128": "1d", "UPCA": "UPC", "ISSN": "1d", "ISBN10": "1d", "ISBN13": "1d", "JAN": "1d", "PZN": "1d", "Code39": "C39", "Code128": "C128", "EAN8": "ean8", "EAN13": "ean13", "EAN14": "1d"}
@@ -37,22 +40,43 @@ class BarCode:
             else:
                 raise ValueError('Unknown bar_type')
         
+        w, h = self.barcode.size
+        self.w = w
+        self.h = h
         #self.barcode = self.barcode.resize((box_size, -1), resample=Image.NEAREST)
-    
 
     def gen1(self):
         rv = BytesIO()
         generate(self.bar_type, str(self.data), writer=ImageWriter(), output=rv)
        
         self.barcode = Image.open(rv)
-        
     
     def gen2(self):
         self.barcode = treepoem.generate_barcode(
             barcode_type=str(self.bar_type),  
             data=self.data, 
         )    
+        
+    def rotate(self, angle):
+        R = cv2.getRotationMatrix2D((self.w // 2, self.h // 2), angle, 1)
+        R_inv = cv2.getRotationMatrix2D((self.w // 2, self.h // 2), -angle, 1)
+        
+        pts = [[0, self.h], [0, 0], [self.w, 0], [self.w, self.h]]
+        dst = np.array(tr.rotate_quad(pts, R_inv))
+        
+        w_new = int(np.max(dst.T[0]) - np.min(dst.T[0]))
+        h_new = int(np.max(dst.T[1])- np.min(dst.T[1]))
 
+        R[0, 2] += (w_new // 2) - self.w // 2
+        R[1, 2] += (h_new // 2) - self.h // 2
+        img = np.array(self.barcode)
+        
+        #print(R.shape, img.shape)
+        rotated = cv2.warpAffine(img, R, (w_new, h_new), borderValue=(255, 255, 255))
+        
+        self.barcode = Image.fromarray(rotated)
+        self.h = h_new
+        self.w = w_new
 
 """
 def gen_qr(data):
