@@ -12,6 +12,13 @@ import numpy as np
 import json
 
 
+def nearest_odd(x):
+    if x % 2 != 0:
+        return x
+    else:
+        return x - 1
+
+
 def draw_markup_quad(quad, image):
     cv2.line(image, (quad[0][0], quad[0][1]), 
              (quad[1][0], quad[1][1]), (0, 255, 0), thickness=5)
@@ -95,22 +102,31 @@ def main(bar_type, data, context_path, amount=1):
         
         mask_im = Image.new("L", background.size, 0)
         draw = ImageDraw.Draw(mask_im)   
-        draw.polygon(dst_pts, fill=255)        
+        draw.polygon(dst_pts, fill=255)    
         
-        background.paste(warped, (0, 0), mask_im) 
+        #blended = tr.pyramid_blending(background, warped, mask_im, levels=5)
+        #blended = Image.fromarray(blended)
+        
+        smooth_mask = tr.smooth_mask(mask_im, nearest_odd(int(min(w_init, h_init) / 5)))
+        blended = (smooth_mask * np.array(warped) + np.array(background) * (1 - smooth_mask)).astype(np.uint8)
+        blended = Image.fromarray(blended)
+        
+        #background.paste(warped, (0, 0), mask_im) 
         res_markup = markup.create_obj_markup(code_dst_pts, barcode.bar_type_tag, 
                                               background.size)
         
-        #background = tr.pyramid_blending(background, warped, mask_im, levels=5, blur=25)
+        #blended.save("blended.png")
         #warped.save("warped.png")
+        #mask_im.save("mask.png")
+        #background.save("background.png")
+        
         res_image_path = RESULT_PATH + "/images/" + (str(i) + ".png")
         res_markup_path = RESULT_PATH + "/markup/" + (str(i) + ".png.json")
         
         markup.save_markup(res_markup, res_markup_path)
-        background.save(str(res_image_path))
+        blended.save(str(res_image_path))
         
         
-
 
 if __name__ == "__main__":
     parser = ArgumentParser()
