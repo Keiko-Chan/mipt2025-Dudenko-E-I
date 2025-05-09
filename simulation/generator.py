@@ -2,6 +2,8 @@ from io import BytesIO
 import numpy as np
 from PIL import Image
 import cv2
+import random
+import string
 
 from qrcode.image.styledpil import StyledPilImage
 from qrcode.image.styles.moduledrawers.pil import RoundedModuleDrawer
@@ -27,7 +29,11 @@ class BarCode:
     
     def __init__(self, bar_type, data, size=50):
         self.bar_type = bar_type
-        self.data = data
+        
+        if data=="none":
+            self.generate_data()
+        else:
+            self.data = data
         
     
         if bar_type in gen1_types:
@@ -53,6 +59,8 @@ class BarCode:
         self.barcode = Image.open(rv)
     
     def gen2(self):
+        #print(self.data)
+        #print(self.bar_type)
         self.barcode = treepoem.generate_barcode(
             barcode_type=str(self.bar_type),  
             data=self.data, 
@@ -85,6 +93,48 @@ class BarCode:
         self.barcode = Image.fromarray(rotated)
         self.h = h_new
         self.w = w_new
+        
+    def generate_data(self):
+        match self.bar_type:
+            case "qrcode" | "azteccode" | "pdf417":
+                length = random.randint(1, 250)
+                self.data = ''.join(random.choice(string.digits + 
+                                                  string.ascii_letters + 
+                                                  string.punctuation) for _ in range(length))
+            case "datamatrix":
+                length = random.randint(1, 100)
+                self.data = ''.join(random.choice(string.digits + 
+                                                  string.ascii_letters + 
+                                                  string.punctuation) for _ in range(length))
+            case "code39" | "code128":
+                length = random.randint(1, 25)
+                self.data = ''.join(random.choice(string.digits + 
+                                                  string.ascii_uppercase) for _ in range(length))
+            case "ean13":
+                value = random.randint(100000000000, 999999999999)
+                if value % 2 == 0:
+                    value += 1
+                self.data = str(value)
+            case "ean8":
+                value = random.randint(1000000, 9999999)
+                if value % 2 == 0:
+                   value += 1
+                self.data = str(value)
+            case "issn":
+                value1 = str(random.randint(1000, 9999))
+                value2 = str(random.randint(100, 999))
+                self.data = value1 + "-" + value2
+            case "microqrcode":
+                length = random.randint(1, 15)
+                self.data = ''.join(random.choice(string.digits + 
+                                                  string.ascii_letters + 
+                                                  string.punctuation) for _ in range(length))
+            case "upca":
+                 self.data = str(random.randint(10000000000, 99999999999))
+            case "pzn":
+                 self.data = str(random.randint(100000, 999999))
+            case _:
+                raise NotImplementedError("choose another bar type")
 
 """
 def gen_qr(data):

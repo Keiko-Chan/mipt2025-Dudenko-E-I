@@ -56,6 +56,9 @@ def smooth_mask(mask_inp, kernel_size):
     one_indices = np.argwhere(padded == 1)
 
     for ind in one_indices:
+        if (ind[0] - pad < 0 or ind[1] - pad < 0 or 
+            ind[0] - pad >= result_mask.shape[0] or ind[1] - pad >= result_mask.shape[1]):
+            continue
         area = padded[ind[0]-pad:ind[0]+pad+1, ind[1]-pad:ind[1]+pad+1]
         result_mask[ind[0] - pad, ind[1] - pad] = funct(area)
      
@@ -77,14 +80,12 @@ def pyramid_blending(background_inp, warped_inp, mask_inp, levels=5):
         G = cv2.pyrDown(gpA[i])
         gpA.append(G)
      
-    # generate Gaussian pyramid for B
     G = B.copy()
     gpB = [G]
     for i in range(6):
         G = cv2.pyrDown(gpB[i])
         gpB.append(G)
      
-    # generate Laplacian Pyramid for A
     lpA = [gpA[5]]
     for i in range(5,0,-1):
         size = (gpA[i-1].shape[1], gpA[i-1].shape[0])
@@ -92,7 +93,6 @@ def pyramid_blending(background_inp, warped_inp, mask_inp, levels=5):
         L = cv2.subtract(gpA[i-1],GE)
         lpA.append(L)
      
-    # generate Laplacian Pyramid for B
     lpB = [gpB[5]]
     for i in range(5,0,-1):
         size = (gpB[i-1].shape[1], gpB[i-1].shape[0])
@@ -100,7 +100,6 @@ def pyramid_blending(background_inp, warped_inp, mask_inp, levels=5):
         L = cv2.subtract(gpB[i-1],GE)
         lpB.append(L)
      
-    # Now add left and right halves of images in each level
     LS = []
     for la,lb in zip(lpA,lpB):
         h_lap, w_lap = la.shape[:2]
@@ -109,7 +108,6 @@ def pyramid_blending(background_inp, warped_inp, mask_inp, levels=5):
         ls = lb * (1 - mask_up) + la * mask_up
         LS.append(ls)
      
-    # now reconstruct
     ls_ = LS[0]
     for i in range(1,6):
         size = (LS[i].shape[1], LS[i].shape[0])
@@ -117,6 +115,5 @@ def pyramid_blending(background_inp, warped_inp, mask_inp, levels=5):
         ls_ = cv2.add(ls_, LS[i])
     
     blended_img = np.clip(ls_, 0, 255).astype(np.uint8)
-
     
     return blended_img

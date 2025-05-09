@@ -5,7 +5,7 @@ import markup_tools as markup
 from argparse import ArgumentParser
 import os
 from pathlib import Path
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 import cv2
 import random
 import numpy as np
@@ -32,9 +32,10 @@ def draw_markup_quad(quad, image):
 
 
 RESULT_PATH = "./result_data"
+bq_types = ["qrcode", "azteccode", "pdf417", "datamatrix", "code128", "code39", "ean13", "ean8", "issn", "microqrcode", "upca", "pzn"]
 
 
-def main(bar_type, data, context_path, amount=1):
+def main(context_path, bar_type="none", amount=1, data="none"):
     
     if not os.path.exists(RESULT_PATH):
         os.makedirs(RESULT_PATH)
@@ -47,8 +48,13 @@ def main(bar_type, data, context_path, amount=1):
 
     subfolders = [ f.path for f in os.scandir(context_path) if f.is_dir() ]
     
+    folders = [random.choice(subfolders) for _ in range(amount)]
+    
+    if bar_type=="none":
+        bar_types = [random.choice(bq_types) for _ in range(amount)]
+    
     for i in range(0, amount):
-        folder = random.choice(subfolders)
+        folder = folders[i]
         folder_name = os.path.basename(folder)
         
         inital_image = Path(folder) / "images" / (folder_name + ".tif")
@@ -64,7 +70,10 @@ def main(bar_type, data, context_path, amount=1):
         
         w_init, h_init = Image.open(inital_image).size
         
-        barcode = BarCode(bar_type, data)
+        if bar_type=="none":
+            barcode = BarCode(bar_types[i], data)
+        else:
+            barcode = BarCode(bar_type, data)
         
         # Rotate barcode
         angle = random.randint(0, 360)
@@ -72,7 +81,7 @@ def main(bar_type, data, context_path, amount=1):
         
         w_code, h_code = barcode.w, barcode.h
         
-        canvas_h = random.randint(int(max(w_code, h_code) * 1.5), h_init)
+        canvas_h = random.randint(min(int(max(w_code, h_code) * 1.5), h_init), max(int(max(w_code, h_code) * 1.5), h_init))
         canvas_w = int(canvas_h * w_init / h_init)
         canvas = np.array(Image.new("RGB", (canvas_w, canvas_h), (255, 255, 255)))
         
@@ -102,14 +111,18 @@ def main(bar_type, data, context_path, amount=1):
         
         mask_im = Image.new("L", background.size, 0)
         draw = ImageDraw.Draw(mask_im)   
-        draw.polygon(dst_pts, fill=255)    
+        draw.polygon(dst_pts, fill=255)  
+        eroded = mask_im.filter(ImageFilter.MinFilter(41)) 
+        mask_im = eroded.filter(ImageFilter.GaussianBlur(radius=15))
         
-        #blended = tr.pyramid_blending(background, warped, mask_im, levels=5)
-        #blended = Image.fromarray(blended)
-        
-        smooth_mask = tr.smooth_mask(mask_im, nearest_odd(int(min(w_init, h_init) / 5)))
+        #smooth_mask = tr.smooth_mask(mask_im, nearest_odd(int(min(w_init, h_init) / 4)))
+        smooth_mask = np.stack([mask_im] * 3, axis=-1) / 255
         blended = (smooth_mask * np.array(warped) + np.array(background) * (1 - smooth_mask)).astype(np.uint8)
         blended = Image.fromarray(blended)
+        
+        #blended = tr.pyramid_blending(background, warped, mask_im, levels=5)
+        #blended = (np.stack([mask_im] * 3, axis=-1)/255  * np.array(blended) + np.array(background) * (1 - np.stack([mask_im] * 3, axis=-1)/255)).astype(np.uint8)
+        #blended = Image.fromarray(blended)
         
         #background.paste(warped, (0, 0), mask_im) 
         res_markup = markup.create_obj_markup(code_dst_pts, barcode.bar_type_tag, 
@@ -130,10 +143,10 @@ def main(bar_type, data, context_path, amount=1):
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("bar_type")
-    parser.add_argument("data")
     parser.add_argument("context_path")
+    parser.add_argument('--bar_type', type=str, default="none")
     parser.add_argument('--amount', type=int, default=1)
+    parser.add_argument("--data", type=str, default="none")
     
     args = parser.parse_args()
 
