@@ -51,6 +51,10 @@ class BarCode:
         self.h = h
         self.pts = np.array([[0, self.h], [0, 0], [self.w, 0], [self.w, self.h]])
         #self.barcode = self.barcode.resize((box_size, -1), resample=Image.NEAREST)
+    
+    def set_key_p(self, w_key, h_key):
+        self.w_key = w_key
+        self.h_key = h_key
 
     def gen1(self):
         rv = BytesIO()
