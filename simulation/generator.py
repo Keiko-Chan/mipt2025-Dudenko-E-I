@@ -1,6 +1,6 @@
 from io import BytesIO
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 import cv2
 import random
 import string
@@ -29,6 +29,7 @@ class BarCode:
     
     def __init__(self, bar_type, data, size=50):
         self.bar_type = bar_type
+        self.rotation = False
         
         if data=="none":
             self.generate_data()
@@ -46,15 +47,59 @@ class BarCode:
             else:
                 raise ValueError('Unknown bar_type')
         
+        if self.bar_type_tag == "az" or     \
+           self.bar_type_tag == "qr" or     \
+           self.bar_type_tag == "pdf" or    \
+           self.bar_type_tag == "dm" or     \
+           self.bar_type_tag == "m-qr":
+           
+           self.dimention = "1d"
+        
+        else:
+           self.dimention = "2d"  
+        
         w, h = self.barcode.size
         self.w = w
         self.h = h
+        
         self.pts = np.array([[0, self.h], [0, 0], [self.w, 0], [self.w, self.h]])
+        #with borders
+        self.pts_wb = np.array([[0, self.h], [0, 0], [self.w, 0], [self.w, self.h]])
         #self.barcode = self.barcode.resize((box_size, -1), resample=Image.NEAREST)
     
     def set_key_p(self, w_key, h_key):
         self.w_key = w_key
-        self.h_key = h_key
+        self.h_key = h_key        
+        
+    def resize(self, scale_w=1, scale_h=1, cut=False):
+        if cut:
+            self.barcode = self.barcode.crop((0, 0, int(self.w / scale_w), int(self.h / scale_h)))
+            w, h = self.barcode.size
+            self.w = w
+            self.h = h
+            self.pts_wb = np.array([[0, self.h], [0, 0], [self.w, 0], [self.w, self.h]])
+        else:
+            self.barcode = self.barcode.resize((int(self.w / scale_w), int(self.h / scale_h)), Image.NEAREST)
+            self.w = int(self.w / scale_w)
+            self.h = int(self.h / scale_h)
+            self.pts = np.array([self.pts.T[0] / scale_w, self.pts.T[1] / scale_h]).T
+            self.pts_wb = np.array([[0, self.h], [0, 0], [self.w, 0], [self.w, self.h]])
+            
+    def apply_border(self, border=1):
+        if self.rotation:
+            print("dont apply borders after roation")
+            return
+            
+        bordered_barcode = ImageOps.expand(self.barcode, 
+                                           border=border, 
+                                           fill='white')
+        self.barcode = bordered_barcode
+        w, h = self.barcode.size
+        self.w = w
+        self.h = h
+        self.pts = np.array([[border, h - border], [border, border], 
+                             [w - border, border], [w - border, h - border]])
+        self.pts_wb = np.array([[0, self.h], [0, 0], [self.w, 0], [self.w, self.h]])
 
     def gen1(self):
         rv = BytesIO()
@@ -76,18 +121,26 @@ class BarCode:
         
         #pts = [[0, self.h], [0, 0], [self.w, 0], [self.w, self.h]]
         dst = np.array(tr.rotate_quad(self.pts, R))
+        dst_wb = np.array(tr.rotate_quad(self.pts_wb, R))
         
-        w_new = int(np.max(dst.T[0]) - np.min(dst.T[0]))
-        h_new = int(np.max(dst.T[1])- np.min(dst.T[1]))
+        w_new = int(np.max(dst_wb.T[0]) - np.min(dst_wb.T[0]))
+        h_new = int(np.max(dst_wb.T[1]) - np.min(dst_wb.T[1]))
 
         R[0, 2] += (w_new // 2) - self.w // 2
         R[1, 2] += (h_new // 2) - self.h // 2
-        
         
         self.pts = dst.T
         self.pts[0] += (w_new // 2) - self.w // 2
         self.pts[1] += (h_new // 2) - self.h // 2
         self.pts = self.pts.T
+        
+        self.pts_wb = dst_wb.T
+        self.pts_wb[0] += (w_new // 2) - self.w // 2
+        self.pts_wb[1] += (h_new // 2) - self.h // 2
+        self.pts_wb = self.pts_wb.T
+        
+        self.pts = np.array(self.pts).astype(np.int32).tolist()
+        self.pts_wb = np.array(self.pts_wb).astype(np.int32).tolist()
         
         img = np.array(self.barcode)
         
@@ -97,6 +150,7 @@ class BarCode:
         self.barcode = Image.fromarray(rotated)
         self.h = h_new
         self.w = w_new
+        self.rotation = True
         
     def generate_data(self):
         match self.bar_type:
@@ -136,7 +190,7 @@ class BarCode:
             case "upca":
                  self.data = str(random.randint(10000000000, 99999999999))
             case "pzn":
-                 self.data = str(random.randint(100000, 999999))
+                 self.data = str(random.randint(100000, 900000))
             case _:
                 raise NotImplementedError("choose another bar type")
 

@@ -22,9 +22,9 @@ def nearest_odd(x):
 def get_number_of_barcodes():
     numbers = [1, 2, 3, 4, 5, 6, 7, 8] 
     weights = [0.6, 0.2, 0.1, 0.05, 0.025, 0.013, 0.007, 0.005] 
+    #weights = [0.8, 0.17, 0.03, 0, 0, 0, 0, 0] 
     
     num = random.choices(numbers, weights=weights, k=1)[0]
-    print(num)
     return num
 
 
@@ -37,28 +37,45 @@ def draw_markup_quad(quad, image):
              (quad[3][0], quad[3][1]), (0, 150, 0), thickness=5)
     cv2.line(image, (quad[3][0], quad[3][1]), 
              (quad[0][0], quad[0][1]), (0, 100, 0), thickness=5)
-    
+    return image
     
 def add_one_barcode(w_init, h_init, canvas=None, canvas_h=0, canvas_w=0, bar_type="none", data="none"):
     if bar_type == "none":
         bar_type = random.choice(bq_types)
     barcode = BarCode(bar_type, data)
-        
+    
+    border = random.randint(0, min(int(barcode.w / 10), int(barcode.h / 10)))
+    barcode.apply_border(border)
+    #barcode.apply_border(5)
+    
     # Rotate barcode
     angle = random.randint(0, 360)
     barcode.rotate(angle)
     
     w_code, h_code = barcode.w, barcode.h
-    
+  
     if canvas is None:
-        canvas_h = random.randint(min(int(max(w_code, h_code) * 1.5), h_init), max(int(max(w_code, h_code) * 1.5), h_init))
+        canvas_h = random.randint(min(int(max(w_code, h_code) * 1.5), h_init), max(int(max(w_code, h_code) * 2), int(h_init * 1.5)))
         canvas_w = int(canvas_h * w_init / h_init)
         canvas = np.array(Image.new("RGB", (canvas_w, canvas_h), (255, 255, 255)))
+    
+    if canvas_w - w_code - 1 < 0 or canvas_h - h_code - 1 < 0:
+        scale_w = int((w_code + 1) / (w_code - (canvas_w - w_code - 1)))
+        scale_h = int((h_code + 1) / (h_code - (canvas_h - h_code - 1)))
+        
+        barcode.resize(max(scale_h, scale_w), max(scale_h, scale_w))
+        w_code, h_code = barcode.w, barcode.h
     
     w_key = random.randint(0, canvas_w - w_code - 1)
     h_key = random.randint(0, canvas_h - h_code - 1)
     
-    canvas[h_key : h_key + h_code, w_key : w_key + w_code] = np.array(barcode.barcode) 
+    bq_mask = Image.new("L", (barcode.w, barcode.h), 0)
+    draw = ImageDraw.Draw(bq_mask)   
+    draw.polygon(np.float32(barcode.pts_wb), fill=255)  
+    bq_mask = np.stack([bq_mask] * 3, axis=-1) / 255
+    
+    canvas[h_key : h_key + h_code, w_key : w_key + w_code] = (bq_mask * np.array(barcode.barcode) + np.array(canvas[h_key : h_key + h_code, w_key : w_key + w_code]) * (1 - bq_mask)).astype(np.uint8)
+    
     barcode.set_key_p(w_key, h_key)
     
     return canvas, canvas_h, canvas_w, barcode
@@ -68,7 +85,7 @@ RESULT_PATH = "./result_data"
 bq_types = ["qrcode", "azteccode", "pdf417", "datamatrix", "code128", "code39", "ean13", "ean8", "issn", "microqrcode", "upca", "pzn"]
 
 
-def main(context_path, bar_type="none", amount=1, data="none"):
+def main(context_path, bar_type="none", amount=1, data="none", name=''):
     
     if not os.path.exists(RESULT_PATH):
         os.makedirs(RESULT_PATH)
@@ -84,6 +101,8 @@ def main(context_path, bar_type="none", amount=1, data="none"):
     folders = [random.choice(subfolders) for _ in range(amount)]
     
     for i in range(0, amount):
+        print("process image:", i)
+        
         folder = folders[i]
         folder_name = os.path.basename(folder)
         
@@ -111,7 +130,6 @@ def main(context_path, bar_type="none", amount=1, data="none"):
             barcodes.append(barcode)
        
         canvas = Image.fromarray(canvas)
-
 
         with open(context_markup_path) as f:
             d = json.load(f)
@@ -165,12 +183,11 @@ def main(context_path, bar_type="none", amount=1, data="none"):
         #mask_im.save("mask.png")
         #background.save("background.png")
         
-        res_image_path = RESULT_PATH + "/images/" + (str(i) + ".png")
-        res_markup_path = RESULT_PATH + "/markup/" + (str(i) + ".png.json")
+        res_image_path = RESULT_PATH + "/images/" + (name + str(i) + ".png")
+        res_markup_path = RESULT_PATH + "/markup/" + (name + str(i) + ".png.json")
         
         markup.save_markup(res_markup, res_markup_path)
         blended.save(str(res_image_path))
-        
         
 
 if __name__ == "__main__":
@@ -179,6 +196,7 @@ if __name__ == "__main__":
     parser.add_argument('--bar_type', type=str, default="none")
     parser.add_argument('--amount', type=int, default=1)
     parser.add_argument("--data", type=str, default="none")
+    parser.add_argument("--name", type=str, default='')
     
     args = parser.parse_args()
 
