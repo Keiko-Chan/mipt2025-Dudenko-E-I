@@ -44,7 +44,7 @@ def add_one_barcode(w_init, h_init, canvas=None, canvas_h=0, canvas_w=0, bar_typ
         bar_type = random.choice(bq_types)
     barcode = BarCode(bar_type, data)
     
-    border = random.randint(0, min(int(barcode.w / 10), int(barcode.h / 10)))
+    border = random.randint(0, min(int(barcode.w / 15s), int(barcode.h / 15)))
     barcode.apply_border(border)
     #barcode.apply_border(5)
     
