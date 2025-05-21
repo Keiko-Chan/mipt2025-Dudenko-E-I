@@ -37,7 +37,16 @@
 Запуск происходит из директории simulation.
 
 ```
-python3 simulate.py bar_type data midv_path --amount 5
+#Генерирует 10 картинок, рандомных типов баркодов, с рандомными данными в них.
+
+python3 simulate.py midv_path  --amount 10 --name sim1_
+```
+
+```
+#Генерирует 5 картинок, содержащие только microqr, содержащие строку some_data. 
+
+python3 simulate.py midv_path --bar_type microqr --data some_data --amount 5 --name sim2_
+
 ```
 
 Разберемся что есть что:

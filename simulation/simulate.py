@@ -60,8 +60,8 @@ def add_one_barcode(w_init, h_init, canvas=None, canvas_h=0, canvas_w=0, bar_typ
         canvas = np.array(Image.new("RGB", (canvas_w, canvas_h), (255, 255, 255)))
     
     if canvas_w - w_code - 1 < 0 or canvas_h - h_code - 1 < 0:
-        scale_w = int((w_code + 1) / (w_code - (canvas_w - w_code - 1)))
-        scale_h = int((h_code + 1) / (h_code - (canvas_h - h_code - 1)))
+        scale_w = (w_code + 1) / (w_code - abs(canvas_w - w_code - 1))
+        scale_h = (h_code + 1) / (h_code - abs(canvas_h - h_code - 1))
         
         barcode.resize(max(scale_h, scale_w), max(scale_h, scale_w))
         w_code, h_code = barcode.w, barcode.h
@@ -176,7 +176,7 @@ def main(context_path, bar_type="none", amount=1, data="none", name=''):
         
         #background.paste(warped, (0, 0), mask_im) 
         res_markup = markup.create_result_markup(objects, background.size) 
-        res_markup = markup.process_imp_det(res_markup)
+        res_markup = markup.process_imp_det(res_markup, background.size)
         
         #blended.save("blended.png")
         #warped.save("warped.png")

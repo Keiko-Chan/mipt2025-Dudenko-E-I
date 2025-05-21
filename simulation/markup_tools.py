@@ -1,6 +1,7 @@
 import json
 import numpy as np
 import os.path as osp
+from PIL import Image, ImageChops, ImageDraw
 
 
 def intersect_areas(b1, b2):
@@ -55,20 +56,38 @@ def create_result_markup(objects, im_size):
     im_size = np.array(im_size).tolist()
     res = {"objects": objects, "size": im_size}
     return res
+     
     
+def process_imp_det(markup, im_size):
+    mask = Image.new("L", (im_size[0], im_size[1]), 0).convert('1')
+    draw = ImageDraw.Draw(mask)   
+    list_del = []
     
-def process_imp_det(markup):
-    for i in range(0, len(markup["objects"])):
+    for i in range(len(markup["objects"]) - 1, -1, -1):
         i_points = markup["objects"][i]["data"]
         
-        for j in range(i+1, len(markup["objects"])):
-            if i==j:
-                continue
-            j_points = markup["objects"][j]["data"]
+        if (len(markup["objects"]) - 1) > i:
+            mask_i = Image.new("L", (im_size[0], im_size[1]), 0).convert('1')
+            draw_i = ImageDraw.Draw(mask_i)
+            draw_i.polygon(np.float32(i_points), fill=1)  
             
-            if quad_intersection(i_points, j_points) and "id" not in markup["objects"][i]["tags"]:
+            xor_res = sum(ImageChops.logical_xor(mask, mask_i).getdata())
+            and_res = sum(ImageChops.logical_and(mask, mask_i).getdata())
+            #print(sum(mask.getdata()), sum(mask_i.getdata()), xor_res, and_res)
+            if and_res > 5:
                 markup["objects"][i]["tags"].append("id")
-     
+            if xor_res < 10:
+                del markup["objects"][i]
+                
+        draw.polygon(np.float32(i_points), fill=1)  
+        
+        #for j in range(i+1, len(markup["objects"])):
+        #    if i==j:
+        #        continue
+        #    j_points = markup["objects"][j]["data"]
+            
+            #if quad_intersection(i_points, j_points) and "id" not in markup["objects"][i]["tags"]:
+            #    markup["objects"][i]["tags"].append("id")
     return markup
  
 

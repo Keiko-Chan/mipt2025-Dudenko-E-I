@@ -82,7 +82,7 @@ class BarCode:
             self.barcode = self.barcode.resize((int(self.w / scale_w), int(self.h / scale_h)), Image.NEAREST)
             self.w = int(self.w / scale_w)
             self.h = int(self.h / scale_h)
-            self.pts = np.array([self.pts.T[0] / scale_w, self.pts.T[1] / scale_h]).T
+            self.pts = np.array([np.array(self.pts).T[0] / scale_w, np.array(self.pts).T[1] / scale_h]).T
             self.pts_wb = np.array([[0, self.h], [0, 0], [self.w, 0], [self.w, self.h]])
             
     def apply_border(self, border=1):
@@ -123,20 +123,22 @@ class BarCode:
         dst = np.array(tr.rotate_quad(self.pts, R))
         dst_wb = np.array(tr.rotate_quad(self.pts_wb, R))
         
-        w_new = int(np.max(dst_wb.T[0]) - np.min(dst_wb.T[0]))
-        h_new = int(np.max(dst_wb.T[1]) - np.min(dst_wb.T[1]))
+        w_new_wb = int(np.max(dst_wb.T[0]) - np.min(dst_wb.T[0]))
+        h_new_wb = int(np.max(dst_wb.T[1]) - np.min(dst_wb.T[1]))
+        w_new = int(np.max(dst.T[0]) - np.min(dst.T[0]))
+        h_new = int(np.max(dst.T[1]) - np.min(dst.T[1]))
 
-        R[0, 2] += (w_new // 2) - self.w // 2
-        R[1, 2] += (h_new // 2) - self.h // 2
+        R[0, 2] += (w_new_wb // 2) - self.w // 2
+        R[1, 2] += (h_new_wb // 2) - self.h // 2
         
         self.pts = dst.T
-        self.pts[0] += (w_new // 2) - self.w // 2
-        self.pts[1] += (h_new // 2) - self.h // 2
+        self.pts[0] += (w_new_wb // 2) - self.w // 2
+        self.pts[1] += (h_new_wb // 2) - self.h // 2
         self.pts = self.pts.T
         
         self.pts_wb = dst_wb.T
-        self.pts_wb[0] += (w_new // 2) - self.w // 2
-        self.pts_wb[1] += (h_new // 2) - self.h // 2
+        self.pts_wb[0] += (w_new_wb // 2) - self.w // 2
+        self.pts_wb[1] += (h_new_wb // 2) - self.h // 2
         self.pts_wb = self.pts_wb.T
         
         self.pts = np.array(self.pts).astype(np.int32).tolist()
@@ -145,11 +147,11 @@ class BarCode:
         img = np.array(self.barcode)
         
         #print(R.shape, img.shape)
-        rotated = cv2.warpAffine(img, R, (w_new, h_new), borderValue=(255, 255, 255))
+        rotated = cv2.warpAffine(img, R, (w_new_wb, h_new_wb), borderValue=(255, 255, 255))
         
         self.barcode = Image.fromarray(rotated)
-        self.h = h_new
-        self.w = w_new
+        self.h = h_new_wb
+        self.w = w_new_wb
         self.rotation = True
         
     def generate_data(self):
